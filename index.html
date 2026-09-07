@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Convite Mariah - 1 Aninho</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width:100%; height:100%;
+    background:#0b1d2a;
+    overflow:hidden;
+    font-family: 'Trebuchet MS', sans-serif;
+    touch-action: manipulation;
+  }
+
+  #app-frame {
+    position:relative;
+    width:100vw;
+    height:100vh;
+    max-width: calc(100vh * 941 / 1672);
+    max-height: 100vh;
+    margin:0 auto;
+    background:#000;
+    overflow:hidden;
+  }
+
+  @media (min-aspect-ratio: 941/1672) {
+    #app-frame { width: calc(100vh * 941 / 1672); height:100vh; }
+  }
+  @media (max-aspect-ratio: 941/1672) {
+    #app-frame { width:100vw; height: calc(100vw * 1672 / 941); }
+  }
+
+  .screen {
+    position:absolute; top:0; left:0;
+    width:100%; height:100%;
+    display:none;
+  }
+  .screen.active { display:block; }
+
+  .screen img, .screen video {
+    width:100%; height:100%;
+    object-fit:cover;
+    display:block;
+    pointer-events:none;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+
+  .hotspot {
+    position:absolute;
+    background:transparent;
+    cursor:pointer;
+    z-index:5;
+  }
+
+  /* debug helper - keep off in production */
+  .hotspot.debug { background: rgba(255,0,0,0.25); border:1px solid red; }
+
+  #backBtnInterativo {
+    position:absolute;
+    top:2.5%; left:2.5%;
+    width:11%; height:6.5%;
+    border-radius:50%;
+    background: rgba(90,58,28,0.55);
+    border:2px solid rgba(255,235,205,0.85);
+    display:flex; align-items:center; justify-content:center;
+    z-index:6;
+    cursor:pointer;
+  }
+  #backBtnInterativo::before {
+    content:"";
+    width:35%; height:35%;
+    border-left:3px solid #fff8e7;
+    border-bottom:3px solid #fff8e7;
+    transform: rotate(45deg) translateX(2px);
+  }
+
+  .tap-layer {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    pointer-events:none;
+    z-index:999;
+    overflow:hidden;
+  }
+
+  .shell {
+    position:absolute;
+    width:22px; height:22px;
+    pointer-events:none;
+    opacity:0.95;
+    filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
+    animation: shellFly 1100ms ease-out forwards;
+  }
+
+  @keyframes shellFly {
+    0% {
+      transform: translate(-50%,-50%) scale(0.3) rotate(0deg);
+      opacity:1;
+    }
+    70% {
+      opacity:1;
+    }
+    100% {
+      transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1) rotate(var(--rot));
+      opacity:0;
+    }
+  }
+
+  .tap-hint {
+    position:absolute;
+    bottom:6%;
+    left:0; right:0;
+    text-align:center;
+    color:#fff;
+    font-size:14px;
+    letter-spacing:1px;
+    text-shadow:0 0 6px rgba(0,0,0,0.7);
+    opacity:0.85;
+    animation: pulseHint 1.8s ease-in-out infinite;
+    z-index:4;
+    pointer-events:none;
+  }
+  @keyframes pulseHint {
+    0%,100% { opacity:0.4; }
+    50% { opacity:0.95; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app-frame">
+
+  <!-- TELA 1: Landing -->
+  <div class="screen active" id="screen-landing">
+    <img src="primeira.jpg" alt="Convite Mariah" draggable="false">
+    <div class="hotspot" id="hotspot-landing" style="top:0;left:0;width:100%;height:100%;"></div>
+  </div>
+
+  <!-- TELA 2: Video 1 -->
+  <div class="screen" id="screen-video1">
+    <video id="video1" src="video1.mp4" playsinline webkit-playsinline></video>
+  </div>
+
+  <!-- TELA 3: Video 2 -->
+  <div class="screen" id="screen-video2">
+    <video id="video2" src="video2.mp4" playsinline webkit-playsinline></video>
+  </div>
+
+  <!-- TELA 4: Interativo -->
+  <div class="screen" id="screen-interativo">
+    <img src="interativo.jpg" alt="Detalhes da festa" draggable="false">
+
+    <div id="backBtnInterativo" title="Voltar ao início"></div>
+
+    <div class="hotspot" id="hotspot-presenca"
+         style="top:49%; left:30%; width:27%; height:14%;"></div>
+
+    <div class="hotspot" id="hotspot-local"
+         style="top:49%; left:56%; width:27%; height:14%;"></div>
+
+    <div class="hotspot" id="hotspot-presentes"
+         style="top:63%; left:43%; width:27%; height:14%;"></div>
+  </div>
+
+  <!-- TELA 5: Presentes -->
+  <div class="screen" id="screen-presentes">
+    <img src="presentes.jpg" alt="Sugestões de presentes" draggable="false">
+
+    <div class="hotspot" id="hotspot-voltar-convite"
+         style="top:1%; left:58%; width:40%; height:9%;"></div>
+  </div>
+
+</div>
+
+<div class="tap-layer" id="tapLayer"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var LINK_CONFIRMAR = "https://wa.link/bbx7hx";
+  var LINK_LOCALIZACAO = "https://www.google.com/maps/dir/-23.5511448,-46.7035961/Espa%C3%A7o+LS+Fest,+Av.+Ros%C3%A1ria,+780+-+Vila+Rosaria,+S%C3%A3o+Paulo+-+SP,+08021-070/@-23.5608251,-46.7066913,14.5z/data=!4m8!4m7!1m0!1m5!1m1!1s0x94ce63001c9da39d:0xe825e356cfc9477d!2m2!1d-46.4323565!2d-23.5007575?entry=ttu&g_ep=EgoyMDI2MDkwMS4wIKXMDSoASAFQAw%3D%3D";
+
+  var screens = {
+    landing: document.getElementById('screen-landing'),
+    video1: document.getElementById('screen-video1'),
+    video2: document.getElementById('screen-video2'),
+    interativo: document.getElementById('screen-interativo'),
+    presentes: document.getElementById('screen-presentes')
+  };
+
+  var video1 = document.getElementById('video1');
+  var video2 = document.getElementById('video2');
+
+  function showScreen(name) {
+    Object.keys(screens).forEach(function (key) {
+      screens[key].classList.toggle('active', key === name);
+    });
+  }
+
+  function playVideo1FromStart() {
+    showScreen('video1');
+    try { video1.currentTime = 0; } catch (e) {}
+    video1.muted = false;
+    var p = video1.play();
+    if (p && p.catch) { p.catch(function () { video1.muted = true; video1.play(); }); }
+  }
+
+  function playVideo2FromStart() {
+    showScreen('video2');
+    try { video2.currentTime = 0; } catch (e) {}
+    video2.muted = false;
+    var p = video2.play();
+    if (p && p.catch) { p.catch(function () { video2.muted = true; video2.play(); }); }
+  }
+
+  // Fluxo principal
+  document.getElementById('hotspot-landing').addEventListener('click', function () {
+    playVideo1FromStart();
+  });
+
+  video1.addEventListener('ended', function () {
+    playVideo2FromStart();
+  });
+
+  video2.addEventListener('ended', function () {
+    showScreen('interativo');
+  });
+
+  // Botões da tela interativa
+  document.getElementById('hotspot-presenca').addEventListener('click', function (e) {
+    e.stopPropagation();
+    window.open(LINK_CONFIRMAR, '_blank', 'noopener');
+  });
+
+  document.getElementById('hotspot-local').addEventListener('click', function (e) {
+    e.stopPropagation();
+    window.open(LINK_LOCALIZACAO, '_blank', 'noopener');
+  });
+
+  document.getElementById('hotspot-presentes').addEventListener('click', function (e) {
+    e.stopPropagation();
+    showScreen('presentes');
+  });
+
+  document.getElementById('backBtnInterativo').addEventListener('click', function (e) {
+    e.stopPropagation();
+    playVideo1FromStart();
+  });
+
+  // Botão voltar da tela de presentes
+  document.getElementById('hotspot-voltar-convite').addEventListener('click', function (e) {
+    e.stopPropagation();
+    showScreen('interativo');
+  });
+
+  // -------- Efeito de conchinhas ao tocar na tela --------
+  var tapLayer = document.getElementById('tapLayer');
+
+  function shellSVG() {
+    return '<svg viewBox="0 0 64 64" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs>' +
+        '<radialGradient id="pearl" cx="35%" cy="30%" r="75%">' +
+          '<stop offset="0%" stop-color="#ffffff"/>' +
+          '<stop offset="35%" stop-color="#f6eefc"/>' +
+          '<stop offset="60%" stop-color="#cfe9ff"/>' +
+          '<stop offset="80%" stop-color="#ffe9f5"/>' +
+          '<stop offset="100%" stop-color="#fff6d8"/>' +
+        '</radialGradient>' +
+      '</defs>' +
+      '<path d="M32 6 C40 6 47 14 51 24 C55 34 55 46 51 54 C48 60 40 60 32 56 C24 60 16 60 13 54 C9 46 9 34 13 24 C17 14 24 6 32 6 Z" ' +
+        'fill="url(#pearl)" stroke="#ffffff" stroke-width="1" opacity="0.95"/>' +
+      '<path d="M32 8 L32 55 M32 14 L20 50 M32 14 L44 50 M32 20 L14 46 M32 20 L50 46" ' +
+        'stroke="#ffffff" stroke-width="1" opacity="0.55" fill="none"/>' +
+    '</svg>';
+  }
+
+  function burstShells(x, y) {
+    var count = 7;
+    for (var i = 0; i < count; i++) {
+      var el = document.createElement('div');
+      el.className = 'shell';
+      el.innerHTML = shellSVG();
+
+      var angle = (Math.PI * 2 * i) / count + (Math.random() * 0.6 - 0.3);
+      var dist = 40 + Math.random() * 70;
+      var dx = Math.cos(angle) * dist;
+      var dy = Math.sin(angle) * dist - 20;
+      var rot = (Math.random() * 200 - 100).toFixed(0) + 'deg';
+      var size = 14 + Math.random() * 14;
+
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.width = size + 'px';
+      el.style.height = size + 'px';
+      el.style.setProperty('--dx', dx.toFixed(0) + 'px');
+      el.style.setProperty('--dy', dy.toFixed(0) + 'px');
+      el.style.setProperty('--rot', rot);
+      el.style.animationDelay = (Math.random() * 80) + 'ms';
+
+      tapLayer.appendChild(el);
+      (function (node) {
+        setTimeout(function () {
+          if (node.parentNode) node.parentNode.removeChild(node);
+        }, 1300);
+      })(el);
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    burstShells(e.clientX, e.clientY);
+  }, { passive: true });
+
+  document.addEventListener('touchstart', function (e) {
+    if (e.touches && e.touches.length) {
+      var t = e.touches[0];
+      burstShells(t.clientX, t.clientY);
+    }
+  }, { passive: true });
+
+})();
+</script>
+</body>
+</html>
